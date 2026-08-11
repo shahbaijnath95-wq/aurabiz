@@ -131,7 +131,7 @@ export default function RegisterPage() {
   const handleRegister = async () => {
     setLoading(true);
     try {
-      const MASTER_URL = process.env.NEXT_PUBLIC_MASTER_URL || "http://localhost:8010";
+      const MASTER_URL = process.env.NEXT_PUBLIC_MASTER_URL || "https://aurabiz.onrender.com";
 
       // Step 1: Register user
       const regRes = await fetch("/api/v1/auth/register", {

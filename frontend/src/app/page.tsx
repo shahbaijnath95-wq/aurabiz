@@ -104,7 +104,7 @@ export default function LandingPage() {
     setBuying(true);
     setPurchaseError("");
     try {
-      const MASTER_URL = process.env.NEXT_PUBLIC_MASTER_URL || 'http://localhost:8010';
+      const MASTER_URL = process.env.NEXT_PUBLIC_MASTER_URL || 'https://aurabiz.onrender.com';
 
       // Step 1: Load Razorpay SDK
       const rpReady = await loadRazorpay();
@@ -707,7 +707,7 @@ export default function LandingPage() {
                       {copied ? "✅ Copied!" : "📋 Copy License Key"}
                     </button>
                   </div>
-                  <a href={`${process.env.NEXT_PUBLIC_MASTER_URL || 'http://localhost:8010'}/api/license/download-exe`} className="block w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold shadow-lg hover:-translate-y-0.5 transition-all">
+                    <a href={`${process.env.NEXT_PUBLIC_MASTER_URL || 'https://aurabiz.onrender.com'}/api/license/download-exe`} className="block w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold shadow-lg hover:-translate-y-0.5 transition-all">
                     ⬇️ Download AuraBiz for Windows (.exe)
                   </a>
                   <p className="text-xs text-gray-400 mt-3">Install karo → License key daalo → Dashboard kholo</p>
