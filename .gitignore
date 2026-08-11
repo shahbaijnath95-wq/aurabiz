@@ -62,9 +62,10 @@ frontend/out/
 
 # Secrets & Logs
 *.log
-*.txt
 *.env*
 backend/data/
 backend/logs/
 master/data/
 whatsapp-bot/auth_state/
+!master/requirements.txt
+!backend/requirements.txt
