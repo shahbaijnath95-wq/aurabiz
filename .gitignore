@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.docker
+.env.docker.example
+
+# Database
+*.db
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+
+# Next.js
+.next/
+out/
+
+# Python
+*.egg-info/
+dist/
+build/
+
+# WhatsApp Bot (session data - DO NOT COMMIT)
+whatsapp-bot/auth_state/
+whatsapp-bot/sessions.json
+whatsapp-bot/bot_config.json
+whatsapp-bot/*.log
+
+# Uploads
+backend/uploads/
+
+# OS
+Thumbs.db
+.DS_Store
+.collaborator
+
+# Desktop App - bundled runtimes (too large for git)
+desktop-app/resources/python-embed/
+desktop-app/resources/node-embed/
+desktop-app/dist/
+desktop-app/node_modules/
+
+# Frontend build output (regenerated)
+frontend/.next/
+frontend/out/
+
+# Large files
+desktop-app/resources/python-embed/
+desktop-app/resources/node-embed/
+master/releases/
+*.exe
+*.zip
+node_modules/
+frontend/out/
+
+# Secrets & Logs
+*.log
+*.txt
+*.env*
+backend/data/
+backend/logs/
+master/data/
+whatsapp-bot/auth_state/

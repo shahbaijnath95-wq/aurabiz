@@ -1,0 +1,167 @@
+{
+  "omniroute": {
+    "url": "http://localhost:3000",
+    "enabled": true,
+    "require_api_key": false,
+    "description": "OmniRoute AI Gateway - 305+ models, 50+ free tiers"
+  },
+  "opencode_models": [
+    {
+      "id": "no-think/oc/deepseek-v4-flash-free",
+      "name": "DeepSeek V4 Flash (Free)",
+      "provider": "opencode",
+      "max_tokens": 200000,
+      "speed": "fast",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": true,
+      "languages": [
+        "hi",
+        "en",
+        "mr",
+        "gu",
+        "bn",
+        "ta",
+        "te"
+      ]
+    },
+    {
+      "id": "no-think/oc/big-pickle",
+      "name": "Big Pickle (Free)",
+      "provider": "opencode",
+      "max_tokens": 200000,
+      "speed": "medium",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/minimax-m3-free",
+      "name": "MiniMax M3 (Free, Vision)",
+      "provider": "opencode",
+      "max_tokens": 1000000,
+      "speed": "medium",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/minimax-m2.5-free",
+      "name": "MiniMax M2.5 (Free)",
+      "provider": "opencode",
+      "max_tokens": 204000,
+      "speed": "medium",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/ling-2.6-1t-free",
+      "name": "Ling 2.6 1T (Free)",
+      "provider": "opencode",
+      "max_tokens": 262000,
+      "speed": "slow",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/trinity-large-preview-free",
+      "name": "Trinity Large Preview (Free)",
+      "provider": "opencode",
+      "max_tokens": 131000,
+      "speed": "medium",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/nemotron-3-super-free",
+      "name": "Nemotron 3 Super (Free)",
+      "provider": "opencode",
+      "max_tokens": 1000000,
+      "speed": "medium",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/qwen3.6-plus-free",
+      "name": "Qwen 3.6 Plus (Free, Code)",
+      "provider": "opencode",
+      "max_tokens": 200000,
+      "speed": "fast",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/nemotron-3-ultra-free",
+      "name": "Nemotron 3 Ultra (Free)",
+      "provider": "opencode",
+      "max_tokens": 1000000,
+      "speed": "slow",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    },
+    {
+      "id": "no-think/oc/mimo-v2.5-free",
+      "name": "MiMo V2.5 (Free)",
+      "provider": "opencode",
+      "max_tokens": 200000,
+      "speed": "fast",
+      "reasoning": false,
+      "cost": "free",
+      "recommended": false,
+      "languages": [
+        "hi",
+        "en"
+      ]
+    }
+  ],
+  "default_model": "no-think/oc/deepseek-v4-flash-free",
+  "fallback_chain": [
+    "no-think/oc/deepseek-v4-flash-free",
+    "no-think/oc/minimax-m3-free",
+    "no-think/oc/big-pickle"
+  ],
+  "settings": {
+    "max_tokens": 500,
+    "temperature": 0.7,
+    "timeout_seconds": 25,
+    "max_retries": 2
+  }
+}

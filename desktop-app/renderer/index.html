@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuraBiz — AI WhatsApp Business Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- LICENSE SCREEN -->
+  <div id="view-license" class="view center">
+    <div class="login-card">
+      <div class="login-logo"><div class="login-logo-icon">A</div><h1>AuraBiz</h1></div>
+      <p class="login-sub">License key daalo — dashboard khul jayega</p>
+      <div id="license-error" class="alert error hidden"></div>
+      <div id="license-success" class="alert success hidden">License valid! Dashboard khol rahe hain...</div>
+      <input id="license-key-input" class="input" type="text" placeholder="AURABIZ-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" />
+      <button id="btn-activate" class="btn-primary w-full">Activate License</button>
+      <p style="color:var(--text-muted);font-size:.75rem;margin-top:1rem">License key aapko email pe mili hai purchase ke baad</p>
+    </div>
+  </div>
+
+  <!-- SETUP WIZARD -->
+  <div id="view-setup" class="view center hidden">
+    <div class="login-card" style="max-width:520px">
+      <div class="login-logo"><div class="login-logo-icon">A</div><h1>AuraBiz</h1></div>
+      <p class="login-sub">Business Setup — 2 minute hai</p>
+      <div id="setup-step-1">
+        <h3 class="setup-title">Business Details</h3>
+        <div class="form-grid">
+          <div class="field"><label>Business Ka Naam *</label><input id="setup-business-name" class="input" placeholder="Sharma Kirana Store" /></div>
+          <div class="field"><label>Business Type *</label>
+            <select id="setup-business-type" class="input">
+              <option value="">Select karo...</option>
+              <option value="kirana">Kirana Store</option>
+              <option value="salon">Salon / Beauty</option>
+              <option value="restaurant">Restaurant / Cafe</option>
+              <option value="clothing">Clothing Shop</option>
+              <option value="electronics">Electronics</option>
+              <option value="pharmacy">Pharmacy</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="field"><label>UPI ID</label><input id="setup-upi-id" class="input" placeholder="yourname@upi" /></div>
+          <div class="field"><label>WhatsApp Number</label><input id="setup-whatsapp" class="input" placeholder="+91 98765 43210" /></div>
+          <div class="field full-width"><label>Address</label><input id="setup-address" class="input" placeholder="Shop no. 5, Main Market" /></div>
+        </div>
+        <button id="btn-setup-continue" class="btn-primary w-full mt-16">Continue - WhatsApp Connect</button>
+      </div>
+      <div id="setup-step-2" class="hidden">
+        <h3 class="setup-title">WhatsApp QR Scan</h3>
+        <p class="login-sub">Apne WhatsApp Business app se QR scan karo</p>
+        <div id="qr-box" class="qr-box"><p class="muted">QR generate ho raha hai...</p></div>
+        <div id="bot-status" class="status-badge connecting"><span class="spinner"></span> Connecting...</div>
+        <ol class="scan-steps">
+          <li>Phone pe WhatsApp kholo</li>
+          <li>Settings - Linked Devices - Link a Device</li>
+          <li>Upar ka QR code scan karo</li>
+        </ol>
+        <button id="btn-setup-done" class="btn-primary w-full mt-16 hidden">Done - Dashboard Kholo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP (Admin Dashboard Style) -->
+  <div id="view-app" class="hidden">
+    <div class="app-layout">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="app-sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-icon">A</div>
+          <div><h1 class="brand-name">AuraBiz</h1><p class="brand-sub" id="sidebar-plan">Free Plan</p></div>
+        </div>
+        <nav class="sidebar-nav">
+          <p class="nav-section">Main</p>
+          <a class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </a>
+          <a class="nav-item" data-page="products" onclick="switchPage('products')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            Products
+          </a>
+          <p class="nav-section">Tools</p>
+          <a class="nav-item" data-page="ai" onclick="switchPage('ai')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="2"/></svg>
+            AI Assistant
+          </a>
+          <a class="nav-item" data-page="whatsapp" onclick="switchPage('whatsapp')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            WhatsApp
+          </a>
+          <p class="nav-section">Settings</p>
+          <a class="nav-item" data-page="settings" onclick="switchPage('settings')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <span id="ai-badge" class="sidebar-badge">Free AI</span>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <div class="main-area">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+            <h2 id="page-title" class="topbar-title">Dashboard</h2>
+          </div>
+          <div class="topbar-right">
+            <span id="license-badge" class="topbar-badge"></span>
+          </div>
+        </header>
+        <div class="content">
+
+          <!-- DASHBOARD -->
+          <div id="page-dashboard" class="page active">
+            <div class="stats-grid">
+              <div class="stat-card"><div class="stat-icon blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div><div class="stat-value" id="stat-products">0</div><div class="stat-label">Products</div></div></div>
+              <div class="stat-card"><div class="stat-icon green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div><div class="stat-value" id="stat-stock">0</div><div class="stat-label">Total Stock</div></div></div>
+              <div class="stat-card"><div class="stat-icon purple"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><div class="stat-value" id="stat-value">Rs.0</div><div class="stat-label">Inventory Value</div></div></div>
+              <div class="stat-card"><div class="stat-icon amber"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><div><div class="stat-value" id="stat-plan">--</div><div class="stat-label">Plan</div></div></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Welcome back!</h3></div>
+              <p class="card-text">AuraBiz me aapka swagat hai! Products add karo, AI Assistant se customers ka jawab do, WhatsApp se orders lo.</p>
+              <div class="quick-actions">
+                <button class="btn-primary" onclick="switchPage('products')">+ Add Product</button>
+                <button class="btn-primary" style="background:var(--bg);color:var(--text);border:1px solid var(--border)" onclick="switchPage('ai')">Try AI Assistant</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRODUCTS -->
+          <div id="page-products" class="page">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Products <span id="product-count" class="count-pill">0</span></h3>
+                <button class="btn-primary" style="padding:.45rem 1rem;font-size:.82rem" id="btn-new-product">+ Add Product</button>
+              </div>
+              <form id="product-form" class="product-form hidden">
+                <input type="hidden" id="pf-id" />
+                <div class="form-grid">
+                  <div class="field"><label>Product Name *</label><input id="pf-name" class="input" required placeholder="e.g. Red Silk Kurta" /></div>
+                  <div class="field"><label>Price (Rs.)</label><input id="pf-price" class="input" type="number" step="0.01" min="0" placeholder="1299" /></div>
+                  <div class="field"><label>Stock</label><input id="pf-stock" class="input" type="number" min="0" placeholder="12" /></div>
+                  <div class="field"><label>Unit</label><select id="pf-unit" class="input"><option value="piece">piece</option><option value="kg">kg</option><option value="litre">litre</option><option value="dozen">dozen</option><option value="box">box</option></select></div>
+                  <div class="field"><label>Category</label><input id="pf-category" class="input" placeholder="e.g. Grocery" /></div>
+                  <div class="field"><label>Description</label><input id="pf-desc" class="input" placeholder="Optional" /></div>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn-primary">Save Product</button>
+                  <button type="button" class="btn-primary" style="background:var(--bg);color:var(--text);border:1px solid var(--border)" id="btn-cancel-product">Cancel</button>
+                </div>
+              </form>
+              <div class="table-wrap">
+                <table class="table"><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Unit</th><th>Category</th><th>Actions</th></tr></thead>
+                  <tbody id="product-tbody"><tr><td colspan="6" class="empty">Abhi koi product nahi</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI -->
+          <div id="page-ai" class="page">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">AI Assistant</h3>
+                <div class="ai-toggle">
+                  <button class="ai-option active" data-tier="free">Free AI</button>
+                  <button class="ai-option" data-tier="paid">Paid AI</button>
+                </div>
+              </div>
+              <p class="card-text" style="font-size:.82rem;margin-bottom:.85rem"><b>Free AI:</b> Local engine — product price/stock/order ka jawab.<br/><b>Paid AI:</b> Premium model — best replies.</p>
+              <div id="ai-chat" class="chat-box"><div class="chat-msg bot">Namaste ji! Mujhse product price, stock ya order ke baare mein puchho.</div></div>
+              <div class="chat-input-row"><input id="ai-input" class="input" placeholder="e.g. Red kurta kitne ka hai?" /><button id="btn-ai-send" class="btn-send">Send</button></div>
+            </div>
+          </div>
+
+          <!-- WHATSAPP -->
+          <div id="page-whatsapp" class="page">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">WhatsApp Connection</h3></div>
+              <div class="wa-status">
+                <div class="wa-avatar" id="wa-avatar">?</div>
+                <div class="wa-info"><h4 id="wa-name">Checking...</h4><p id="wa-phone">--</p></div>
+                <span id="wa-connection-badge" class="status-badge connecting"><span class="spinner"></span> Checking...</span>
+              </div>
+              <p class="card-text" style="margin-top:.5rem">WhatsApp connected hai toh customers ke messages auto-reply ho jayenge.</p>
+            </div>
+          </div>
+
+          <!-- SETTINGS -->
+          <div id="page-settings" class="page">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Settings</h3></div>
+              <div class="settings-grid">
+                <div class="settings-item"><h4>Business Profile</h4><p>Business naam, type, UPI ID manage karo</p></div>
+                <div class="settings-item"><h4>AI Configuration</h4><p>Free ya Paid AI switch karo</p></div>
+                <div class="settings-item"><h4>WhatsApp Bot</h4><p>Bot restart, logout ya re-connect karo</p></div>
+                <div class="settings-item"><h4>License</h4><p id="settings-license-info">License key aur plan details</p></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

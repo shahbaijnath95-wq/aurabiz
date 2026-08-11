@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>License Test</title>
+<style>
+body { font-family: Consolas, monospace; background: #1a1a2e; color: #eee; padding: 1.5rem; font-size: 0.85rem; }
+h2 { color: #ffb24d; margin-top: 0; }
+input, button { padding: 0.5rem 1rem; margin: 0.3rem 0; border: 1px solid #444; background: #2a2a3e; color: #eee; border-radius: 0.3rem; }
+input { width: 350px; }
+button { background: linear-gradient(135deg, #ffb24d, #e67a00); color: white; border: none; cursor: pointer; font-weight: 600; }
+pre { background: #0d0d1a; padding: 0.8rem; border-radius: 0.3rem; margin-top: 0.5rem; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+.ok { color: #10b981; }
+.err { color: #ef4444; }
+</style>
+</head>
+<body>
+<h2>🔑 License Activation Test</h2>
+<p>Machine ID: <code id="machineId"></code></p>
+
+<div>
+  <input type="text" id="licKey" value="AURABIZ-TEST-1234-5678-ABCD" />
+  <button onclick="activate()">Activate</button>
+  <button onclick="validate()">Validate</button>
+</div>
+
+<pre id="output">Ready...</pre>
+
+<script>
+document.getElementById('machineId').textContent =
+  [...Array(32)].map(() => Math.floor(Math.random()*16).toString(16)).join('');
+
+const out = msg => {
+  const pre = document.getElementById('output');
+  const cls = (typeof msg === 'string' && msg.includes('Error')) || (msg && msg.ok === false) ? 'err' : 'ok';
+  const txt = new Date().toLocaleTimeString() + '  ' + (typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2));
+  pre.insertAdjacentHTML('beforeend', `<div class="${cls}">${txt}</div>`);
+  pre.scrollTop = pre.scrollHeight;
+};
+
+async function getMachineId() {
+  return document.getElementById('machineId').textContent;
+}
+
+async function activate() {
+  const key = document.getElementById('licKey').value.trim();
+  const machineId = await getMachineId();
+  out(`→ Activating ${key} with machine ${machineId.slice(0,8)}...`);
+  try {
+    const res = await fetch('http://localhost:8010/api/license/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ license_key: key.toUpperCase(), machine_id: machineId }),
+    });
+    const data = await res.json();
+    out(data);
+  } catch (e) {
+    out(`Error: ${e.message}`);
+  }
+}
+
+async function validate() {
+  const key = document.getElementById('licKey').value.trim();
+  const machineId = await getMachineId();
+  out(`→ Validating ${key}...`);
+  try {
+    const res = await fetch('http://localhost:8010/api/license/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ license_key: key.toUpperCase(), machine_id: machineId }),
+    });
+    const data = await res.json();
+    out(data);
+  } catch (e) {
+    out(`Error: ${e.message}`);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+{
+  "name": "aurabiz-desktop",
+  "version": "1.0.0",
+  "description": "AuraBiz - AI WhatsApp Business Assistant (Desktop)",
+  "main": "main.js",
+  "author": "AuraBiz",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "pack": "electron-builder --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.aurabiz.desktop",
+    "productName": "AuraBiz",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+    ],
+    "extraResources": [
+      {
+        "from": "../master",
+        "to": "resources/master",
+        "filter": ["**/*", "!__pycache__/**", "!*.pyc", "!*.pyo", "!data/**", "!master.log", "!master_err.log"]
+      },
+      {
+        "from": "../backend",
+        "to": "resources/backend",
+        "filter": ["**/*", "!__pycache__/**", "!*.pyc", "!*.pyo", "!alembic/**", "!tests/**", "!test_*.py"]
+      },
+      {
+        "from": "../whatsapp-bot",
+        "to": "resources/whatsapp-bot",
+        "filter": ["**/*", "!node_modules/.cache/**"]
+      },
+      {
+        "from": "../frontend/out",
+        "to": "resources/frontend/out"
+      },
+      {
+        "from": "../frontend/node_modules",
+        "to": "resources/frontend/node_modules",
+        "filter": ["next/**/*", "react/**/*", "react-dom/**/*", "react-is/**/*", "scheduler/**/*", "use-sync-external-store/**/*", "loose-envify/**/*", "js-tokens/**/*"]
+      },
+      {
+        "from": "resources/python-embed",
+        "to": "resources/python",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "resources/node-embed",
+        "to": "resources/node",
+        "filter": ["**/*"]
+      }
+    ],
+    "asarUnpack": [
+      "**/node_modules/ffmpeg-static/**",
+      "**/ffmpeg*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AuraBiz"
+    }
+  }
+}
