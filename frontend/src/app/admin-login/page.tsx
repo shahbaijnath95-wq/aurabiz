@@ -24,8 +24,8 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
 
-      if (res.ok && data.access_token) {
-        localStorage.setItem("admin_token", data.access_token);
+      if (res.ok && (data.access_token || data.token)) {
+        localStorage.setItem("admin_token", data.access_token || data.token);
         router.push("/admin/dashboard");
       } else {
         setError(data.detail || "Login failed");
@@ -56,7 +56,7 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-              placeholder="admin@aurabiz.in"
+              placeholder="admin@platform.com"
               required
             />
           </div>
