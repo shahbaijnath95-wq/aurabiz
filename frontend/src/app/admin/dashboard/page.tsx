@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 const MASTER = "https://aurabiz.onrender.com";
@@ -11,6 +11,39 @@ interface License {
   max_activations: number; expires_at: string; created_at: string; tenant_id: string;
 }
 interface Stats { total: number; activated: number; issued: number; revoked: number; revenue: number; paid_ai: number; free_ai: number; by_plan: Record<string, number>; }
+interface Toast { id: number; message: string; type: "success" | "error" | "info"; }
+
+/* ─── Toast Component ─── */
+function ToastContainer({ toasts, remove }: { toasts: Toast[]; remove: (id: number) => void }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="fixed top-4 right-4 z-[100] space-y-2">
+      {toasts.map(t => (
+        <div key={t.id} className={`px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${t.type === "success" ? "bg-emerald-500 text-white" : t.type === "error" ? "bg-red-500 text-white" : "bg-blue-500 text-white"}`}>
+          <span>{t.type === "success" ? "✓" : t.type === "error" ? "✕" : "ℹ"}</span>
+          {t.message}
+          <button onClick={() => remove(t.id)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Confirm Dialog ─── */
+function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><span className="text-red-500 text-xl">⚠️</span></div>
+        <p className="text-center text-gray-700 font-medium mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600">Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const PLANS: Record<string, { price: number; color: string; bg: string; border: string; features: string[] }> = {
   starter: { price: 999, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200", features: ["100 Products", "500 Messages/mo", "1 User", "Free AI", "Basic Analytics", "Email Support"] },
@@ -26,8 +59,20 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [copied, setCopied] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<License | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null);
+  const [confirmMsg, setConfirmMsg] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const addToast = useCallback((message: string, type: Toast["type"] = "success") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  }, []);
+
+  const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
   useEffect(() => {
     const t = localStorage.getItem("admin_token");
@@ -44,8 +89,29 @@ export default function AdminDashboard() {
       ]);
       if (s) setStats(s);
       if (l) setLicenses(l.licenses || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { addToast("Failed to load data", "error"); }
     setLoading(false);
+    setRefreshing(false);
+  };
+
+  const refresh = () => { setRefreshing(true); const t = localStorage.getItem("admin_token"); if (t) load(t); };
+
+  const handleCopy = async (key: string) => {
+    try { await navigator.clipboard.writeText(key); setCopied(key); addToast("License key copied!", "success"); setTimeout(() => setCopied(null), 2000); }
+    catch { addToast("Failed to copy", "error"); }
+  };
+
+  const handleRevoke = (key: string, name: string) => {
+    setConfirmMsg(`Revoke license for ${name}? This cannot be undone.`);
+    setConfirmAction(async () => {
+      const token = localStorage.getItem("admin_token");
+      try {
+        const res = await fetch(`${MASTER}/api/license/admin/licenses/${key}/revoke`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) { addToast("License revoked", "success"); load(token!); }
+        else { addToast("Revoke failed", "error"); }
+      } catch { addToast("Network error", "error"); }
+      setConfirmAction(null);
+    });
   };
 
   const filtered = useMemo(() => {
@@ -54,15 +120,6 @@ export default function AdminDashboard() {
     if (filter !== "all") list = list.filter(l => l.status === filter);
     return list;
   }, [licenses, search, filter]);
-
-  const copyKey = (key: string) => { navigator.clipboard.writeText(key); setCopied(key); setTimeout(() => setCopied(""), 2000); };
-
-  const revoke = async (key: string) => {
-    if (!confirm(`License ${key} revoke karna hai?`)) return;
-    const token = localStorage.getItem("admin_token");
-    try { await fetch(`${MASTER}/api/license/admin/licenses/${key}/revoke`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); load(token!); }
-    catch (e) { alert("Revoke failed"); }
-  };
 
   const logout = () => { localStorage.removeItem("admin_token"); router.push("/admin-login"); };
 
@@ -77,6 +134,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      <ToastContainer toasts={toasts} remove={removeToast} />
+      {confirmAction && <ConfirmDialog message={confirmMsg} onConfirm={confirmAction} onCancel={() => setConfirmAction(null)} />}
       {/* SIDEBAR */}
       <aside className="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
         <div className="p-5 border-b border-gray-100">
@@ -132,11 +191,8 @@ export default function AdminDashboard() {
               <p className="text-sm text-gray-400 mt-0.5">Welcome back, Super Admin</p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-700">Super Admin</p>
-                <p className="text-xs text-gray-400">admin@platform.com</p>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-amber-200">S</div>
+              <button onClick={refresh} disabled={refreshing} className={`text-sm px-3 py-1.5 rounded-lg border ${refreshing ? "opacity-50" : "hover:bg-gray-50"}`}>{refreshing ? "⟳ Refreshing..." : "⟳ Refresh"}</button>
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-amber-200">A</div>
             </div>
           </div>
         </div>
@@ -144,7 +200,7 @@ export default function AdminDashboard() {
         <div className="p-8">
           {page === "dashboard" && <DashboardView stats={stats} licenses={licenses} setPage={setPage} />}
           {page === "customers" && <CustomersView licenses={licenses} search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} setSelectedCustomer={setSelectedCustomer} />}
-          {page === "licenses" && <LicensesView licenses={filtered} search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} copyKey={copyKey} copied={copied} revoke={revoke} />}
+          {page === "licenses" && <LicensesView licenses={filtered} search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} handleCopy={handleCopy} copied={copied} handleRevoke={handleRevoke} />}
           {page === "revenue" && <RevenueView stats={stats} licenses={licenses} />}
           {page === "plans" && <PlansView stats={stats} />}
           {page === "analytics" && <AnalyticsView stats={stats} licenses={licenses} />}
@@ -318,7 +374,7 @@ function CustomersView({ licenses, search, setSearch, filter, setFilter, setSele
 }
 
 /* ─── LICENSES ─── */
-function LicensesView({ licenses, search, setSearch, filter, setFilter, copyKey, copied, revoke }: any) {
+function LicensesView({ licenses, search, setSearch, filter, setFilter, handleCopy, copied, handleRevoke }: any) {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-4">
@@ -351,8 +407,8 @@ function LicensesView({ licenses, search, setSearch, filter, setFilter, copyKey,
                 <td className="px-4 py-3 text-gray-400 text-xs">{l.expires_at ? new Date(l.expires_at).toLocaleDateString("en-IN") : "-"}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => copyKey(l.license_key)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 transition-all font-medium">{copied === l.license_key ? "Copied!" : "Copy"}</button>
-                    {l.status !== "revoked" && <button onClick={() => revoke(l.license_key)} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all font-medium">Revoke</button>}
+                    <button onClick={() => handleCopy(l.license_key)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 transition-all font-medium">{copied === l.license_key ? "Copied!" : "Copy"}</button>
+                    {l.status !== "revoked" && <button onClick={() => handleRevoke(l.license_key, l.owner_name)} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all font-medium">Revoke</button>}
                   </div>
                 </td>
               </tr>
