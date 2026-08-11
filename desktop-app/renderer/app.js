@@ -2,9 +2,9 @@
    AuraBiz Desktop App v2 — License-Only Flow
    ───────────────────────────────────────────────────── */
 
-// Master backend URL — query param se ya default (sab local)
+// Master backend URL — cloud (sab local hai except license validation)
 const params = new URLSearchParams(window.location.search);
-const API = params.get("masterUrl") || "http://127.0.0.1:8010";
+const API = params.get("masterUrl") || "https://aurabiz.onrender.com";
 const BOT = params.get("botUrl") || "http://127.0.0.1:8001";
 const BACKEND = params.get("backendUrl") || "http://127.0.0.1:8000";
 

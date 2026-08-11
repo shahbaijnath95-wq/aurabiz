@@ -238,7 +238,8 @@ log("=== AuraBiz Desktop starting ===");
 
 // ─── Master backend URL (env override for production) ───
 // Cloud URL for license validation, local for everything else
-const MASTER_URL = process.env.AURABIZ_MASTER_URL || "http://localhost:8010";
+const CLOUD_MASTER_URL = "https://aurabiz.onrender.com";
+const MASTER_URL = process.env.AURABIZ_MASTER_URL || CLOUD_MASTER_URL;
 const BOT_URL = process.env.AURABIZ_BOT_URL || "http://127.0.0.1:8001";
 
 // ─── Cloud config file ───
