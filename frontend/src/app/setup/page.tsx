@@ -43,35 +43,15 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [botConnected, setBotConnected] = useState(false);
-  const [skipWhatsApp, setSkipWhatsApp] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-
-  const checkBotStatus = async () => {
-    try {
-      const res = await fetch("http://127.0.0.1:8001/status", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.connected) {
-          setBotConnected(true);
-          toast("WhatsApp Connected!", "success");
-        }
-      }
-    } catch { /* bot not running */ }
-  };
-
-  useEffect(() => {
-    const interval = setInterval(checkBotStatus, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   const canProceed = () => {
     switch (step) {
       case 0: return form.full_name.trim().length >= 2 && form.email.trim().includes("@");
       case 1: return form.password.length >= 6 && form.password === form.confirmPassword;
       case 2: return form.businessName.trim().length >= 2 && form.businessType.length > 0;
-      case 3: return true; // WhatsApp is optional
+      case 3: return form.phone.trim().length >= 10;
       default: return true;
     }
   };
@@ -263,9 +243,9 @@ export default function SetupPage() {
                   </div>
                   <p className="text-xs text-gray-400 mt-2">10 digit number — country code ke bina</p>
                 </div>
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                  <p className="text-sm text-blue-700 font-medium">ℹ️ WhatsApp Optional</p>
-                  <p className="text-xs text-blue-600 mt-1">Baad mein bhi connect kar sakte ho. Abhi skip karo.</p>
+                <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                  <p className="text-sm text-green-700 font-medium">✅ WhatsApp ready!</p>
+                  <p className="text-xs text-green-600 mt-1">Aapka number setup hone ke baad customers se connect ho jayega</p>
                 </div>
               </div>
             )}
@@ -308,12 +288,6 @@ export default function SetupPage() {
               {step > 0 && step < 4 && (
                 <button onClick={() => setStep(step - 1)} className="px-5 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-2">
                   <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-              )}
-              {step === 3 && (
-                <button onClick={() => { setSkipWhatsApp(true); setStep(4); }}
-                  className="px-5 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors flex items-center gap-2">
-                  Skip WhatsApp →
                 </button>
               )}
               {step < 4 ? (

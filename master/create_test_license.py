@@ -1,36 +1,73 @@
-import sqlite3, uuid, os, datetime
+"""
+Create a test license in the SAME database that the master backend uses.
+Previously this hardcoded a dev-machine path — the license never appeared
+in the master backend's DB. Now it uses config.MASTER_DB_URL (AppData on
+Windows, /var/lib/aurabiz or Postgres on servers).
+"""
+import os
+import sys
+import uuid
+import asyncio
+from datetime import datetime, timezone, timedelta
 
-os.makedirs(r'C:\Users\rohit\Desktop\AI\master\data', exist_ok=True)
-db = sqlite3.connect(r'C:\Users\rohit\Desktop\AI\master\data\master.db')
-c = db.cursor()
+sys.path.insert(0, os.path.dirname(__file__))
 
-c.execute('''CREATE TABLE IF NOT EXISTS tenants (
-    id TEXT PRIMARY KEY, slug TEXT, name TEXT, owner_name TEXT, owner_email TEXT,
-    owner_phone TEXT, db_path TEXT, status TEXT, plan TEXT,
-    max_products INTEGER DEFAULT 100, max_messages_per_month INTEGER DEFAULT 5000,
-    messages_used_this_month INTEGER DEFAULT 0, preferred_language TEXT DEFAULT 'hi',
-    created_at TIMESTAMP, updated_at TIMESTAMP)''')
+from database import async_session, init_master_db
+from models import Tenant, License
+from sqlalchemy import select
 
-c.execute('''CREATE TABLE IF NOT EXISTS licenses (
-    id TEXT PRIMARY KEY, license_key TEXT UNIQUE, tenant_id TEXT, plan TEXT,
-    status TEXT, max_activations INTEGER DEFAULT 1, activations_used INTEGER DEFAULT 0,
-    owner_name TEXT, owner_email TEXT, owner_phone TEXT, amount_paid REAL,
-    ai_tier TEXT DEFAULT 'free', machine_id TEXT, paid_at TIMESTAMP,
-    expires_at TIMESTAMP, last_activated_at TIMESTAMP, created_at TIMESTAMP,
-    updated_at TIMESTAMP)''')
+TEST_LICENSE_KEY = os.getenv("TEST_LICENSE_KEY", "AURABIZ-TEST-1234-5678-ABCD")
 
-lic_id = str(uuid.uuid4())
-lic_key = 'AURABIZ-TEST-1234-5678-ABCD'
-tenant_id = str(uuid.uuid4())
-now = datetime.datetime.now(datetime.timezone.utc)
 
-c.execute('INSERT OR IGNORE INTO tenants (id, name, owner_name, owner_email, status, plan, db_path) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          (tenant_id, 'Test Business', 'Test User', 'test@example.com', 'active', 'starter', 'test.db'))
+async def main():
+    await init_master_db()
+    async with async_session() as db:
+        # Check if already exists
+        existing = await db.execute(select(License).where(License.license_key == TEST_LICENSE_KEY))
+        if existing.scalar_one_or_none():
+            print(f"License already exists: {TEST_LICENSE_KEY}")
+            return
 
-c.execute('INSERT OR IGNORE INTO licenses (id, license_key, tenant_id, plan, status, max_activations, owner_name, owner_email, amount_paid, ai_tier, paid_at, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          (lic_id, lic_key, tenant_id, 'starter', 'issued', 1, 'Test User', 'test@example.com', 999, 'free', now, now + datetime.timedelta(days=30), now))
+        tenant_result = await db.execute(select(Tenant).where(Tenant.owner_email == "test@example.com"))
+        tenant = tenant_result.scalar_one_or_none()
+        if not tenant:
+            tenant = Tenant(
+                slug=f"t{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6]}",
+                name="Test Business",
+                owner_name="Test User",
+                owner_email="test@example.com",
+                owner_phone=None,
+                db_path="local-desktop-app",
+                status="active",
+                plan="starter",
+                max_products=100,
+                max_messages_per_month=500,
+            )
+            db.add(tenant)
+            await db.flush()
 
-db.commit()
-print(f'License created: {lic_key}')
-print(f'Tenant: {tenant_id}')
-db.close()
+        now = datetime.now(timezone.utc)
+        lic = License(
+            license_key=TEST_LICENSE_KEY,
+            tenant_id=tenant.id,
+            plan="starter",
+            status="issued",
+            max_activations=1,
+            activations_used=0,
+            owner_name="Test User",
+            owner_email="test@example.com",
+            owner_phone=None,
+            amount_paid=999,
+            ai_tier="free",
+            paid_at=now,
+            expires_at=now + timedelta(days=30),
+            created_at=now,
+        )
+        db.add(lic)
+        await db.commit()
+        print(f"License created: {TEST_LICENSE_KEY}")
+        print(f"Tenant: {tenant.id}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

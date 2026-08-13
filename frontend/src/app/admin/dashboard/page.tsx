@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [licenses, setLicenses] = useState<License[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [copied, setCopied] = useState<string | null>(null);
@@ -83,13 +84,28 @@ export default function AdminDashboard() {
   const load = async (token: string) => {
     try {
       const h = { Authorization: `Bearer ${token}` };
-      const [s, l] = await Promise.all([
-        fetch(`${MASTER}/api/license/admin/licenses/stats`, { headers: h }).then(r => r.ok ? r.json() : null),
-        fetch(`${MASTER}/api/license/admin/licenses`, { headers: h }).then(r => r.ok ? r.json() : null),
+      const [sRes, lRes] = await Promise.all([
+        fetch(`${MASTER}/api/license/admin/licenses/stats`, { headers: h }),
+        fetch(`${MASTER}/api/license/admin/licenses`, { headers: h }),
       ]);
+      if (!sRes.ok || !lRes.ok) {
+        // 401 = token invalid/expired → re-login required; else backend error
+        const status = sRes.ok ? lRes.status : sRes.status;
+        if (status === 401 || status === 403) {
+          setLoadError("Session expired — phir se login karo. (Token invalid)");
+        } else {
+          setLoadError(`Backend se data nahi mila (HTTP ${status}). Master backend check karo.`);
+        }
+        setStats(null);
+        setLicenses([]);
+        return;
+      }
+      const s = await sRes.json();
+      const l = await lRes.json();
+      setLoadError("");
       if (s) setStats(s);
       if (l) setLicenses(l.licenses || []);
-    } catch (e) { addToast("Failed to load data", "error"); }
+    } catch (e) { setLoadError("Network error — backend reachable nahi hai. Phir try karo."); }
     setLoading(false);
     setRefreshing(false);
   };
@@ -136,6 +152,14 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-50 flex">
       <ToastContainer toasts={toasts} remove={removeToast} />
       {confirmAction && <ConfirmDialog message={confirmMsg} onConfirm={confirmAction} onCancel={() => setConfirmAction(null)} />}
+      {loadError && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[80] w-full max-w-lg px-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-3">
+            <span>{loadError}</span>
+            <button onClick={() => { setLoadError(""); const t = localStorage.getItem("admin_token"); if (t) load(t); }} className="text-red-500 font-bold hover:text-red-700 whitespace-nowrap">Retry</button>
+          </div>
+        </div>
+      )}
       {/* SIDEBAR */}
       <aside className="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
         <div className="p-5 border-b border-gray-100">

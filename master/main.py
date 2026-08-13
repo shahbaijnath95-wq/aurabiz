@@ -6,7 +6,14 @@ import secrets
 import json
 import hmac
 import hashlib
-import razorpay
+
+# Razorpay is optional — import lazily to avoid crashing if not installed
+razorpay = None
+try:
+    import razorpay
+except ImportError:
+    pass
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from contextlib import asynccontextmanager
@@ -503,7 +510,7 @@ async def analytics_daily(
 ):
     """Daily aggregated stats for chart display."""
     from services.analytics_aggregator import get_daily_stats
-    stats = get_daily_stats(days)
+    stats = await get_daily_stats(days)
     return {"stats": stats, "days": days}
 
 
@@ -511,7 +518,7 @@ async def analytics_daily(
 async def analytics_growth(db: AsyncSession = Depends(get_master_db), admin=Depends(get_current_admin)):
     """Growth metrics: signups, plan distribution, MRR, churn."""
     from services.analytics_aggregator import get_growth_stats
-    return get_growth_stats()
+    return await get_growth_stats()
 
 
 @app.get("/admin/analytics/top-tenants")
@@ -522,14 +529,14 @@ async def analytics_top_tenants(
 ):
     """Top tenants by usage."""
     from services.analytics_aggregator import get_top_tenants
-    return {"tenants": get_top_tenants(limit)}
+    return {"tenants": await get_top_tenants(limit)}
 
 
 @app.post("/admin/analytics/aggregate")
 async def analytics_aggregate(db: AsyncSession = Depends(get_master_db), admin=Depends(get_current_admin)):
     """Manually trigger daily stats aggregation."""
     from services.analytics_aggregator import aggregate_daily_stats
-    result = aggregate_daily_stats()
+    result = await aggregate_daily_stats()
     return {"status": "ok", "result": result}
 
 

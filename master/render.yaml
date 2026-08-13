@@ -11,5 +11,16 @@ services:
         sync: false
       - key: RAZORPAY_KEY_SECRET
         sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: DEFAULT_ADMIN_EMAIL
+        value: admin@platform.com
+      - key: DEFAULT_ADMIN_PASSWORD
+        value: AuraBiz@2026!Secure
+      # IMPORTANT: PostgreSQL ka connection string yahan set karo (Render dashboard se copy karo)
+      # Example: postgresql://aurabiz_user:password@dpg-xxxx-a.oregon-postgres.render.com/aurabiz
+      # MASTER_DB_URL ko set karne se data deploy/restart ke baad bhi PERSIST rahega.
+      - key: MASTER_DB_URL
+        sync: false
     healthCheckPath: /health
     autoDeploy: true
