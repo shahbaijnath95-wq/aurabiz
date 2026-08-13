@@ -32,8 +32,11 @@ async def ensure_tenant_db(tenant_id: str):
         return engine, async_session
         
     if tenant_id not in tenant_engines:
-        db_path = os.path.join(os.path.dirname(__file__), "..", "tenants", f"{tenant_id}.db")
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        # Tenant DBs AppData mein rakho — install dir (C:\Program Files) read-only hai!
+        _appdata = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+        tenants_dir = os.path.join(_appdata, "AuraBiz", "tenants")
+        db_path = os.path.join(tenants_dir, f"{tenant_id}.db")
+        os.makedirs(tenants_dir, exist_ok=True)
         
         is_new = not os.path.exists(db_path)
         

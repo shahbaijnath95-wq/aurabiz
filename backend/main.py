@@ -197,7 +197,9 @@ app.include_router(monitoring.router)
 app.include_router(knowledge.router)
 
 # Mount uploads directory for serving images
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+# Use AppData for uploads when packaged (Program Files is read-only)
+_appdata = os.environ.get("APPDATA") or os.path.join(str(Path.home()), "AppData", "Roaming")
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", os.path.join(_appdata, "AuraBiz", "backend", "uploads"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 

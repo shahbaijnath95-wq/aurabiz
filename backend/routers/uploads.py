@@ -3,6 +3,7 @@
 import os
 import uuid
 import hashlib
+from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
 
@@ -11,7 +12,11 @@ from models import User
 
 router = APIRouter(prefix="/api/v1")
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
+# Use AppData for uploads when packaged (Program Files is read-only)
+_appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", os.path.join(_appdata, "AuraBiz", "backend", "uploads"))
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE = 5 * 1024 * 1024  # 5MB
 BASE_URL = "http://127.0.0.1:8000"

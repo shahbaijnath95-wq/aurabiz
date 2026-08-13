@@ -28,4 +28,7 @@ contextBridge.exposeInMainWorld("desktopAPI", {
 
   // Logging
   log: (msg) => ipcRenderer.send("ipc-log", msg),
+
+  // Bot diagnostics
+  getBotDiagnostics: () => ipcRenderer.invoke("bot:diagnostics"),
 });

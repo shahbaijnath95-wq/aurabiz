@@ -10,18 +10,28 @@
 
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage } = require("@whiskeysockets/baileys");
 const pino = require("pino");
+const QRCode = require("qrcode");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const http = require("http");
 const https = require("https");
 
 // ============ CONFIG ============
-const AUTH_DIR = path.join(__dirname, "auth_state");
+// Use APPDATA for writable files (auth_state, sessions) — C:\Program Files is read-only!
+const APPDATA_DIR = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+const WRITABLE_DIR = path.join(APPDATA_DIR, "AuraBiz");
+if (!fs.existsSync(WRITABLE_DIR)) fs.mkdirSync(WRITABLE_DIR, { recursive: true });
+
+const AUTH_DIR = path.join(WRITABLE_DIR, "auth_state");
+if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+
 const PORT = 8001;
 // Backend URL (env-driven so Docker networking works)
 const PYTHON_BACKEND = process.env.BACKEND_URL || "http://127.0.0.1:8000";
-const SESSION_FILE = path.join(__dirname, "sessions.json");
-const CONFIG_FILE = path.join(__dirname, "bot_config.json");
+const SESSION_FILE = path.join(WRITABLE_DIR, "sessions.json");
+// CONFIG_FILE AppData mein — install dir (C:\Program Files) read-only hai!
+const CONFIG_FILE = path.join(WRITABLE_DIR, "bot_config.json");
 
 // API Key for securing bot endpoints
 // Set via environment variable BOT_API_KEY or in bot_config.json
@@ -447,11 +457,13 @@ async function startBot() {
 
 // ============ HTTP SERVER (QR Page + Status) ============
 const server = http.createServer((req, res) => {
-  // CORS
+  // CORS — Electron renderer file:// origin bhi allow karo (desktop app)
   const origin = req.headers.origin;
-  const allowedOrigins = ["http://127.0.0.1:3001", "http://localhost:3001", "http://localhost:3000"];
-  if (origin && allowedOrigins.includes(origin)) {
+  const allowedOrigins = ["http://127.0.0.1:3001", "http://localhost:3001", "http://localhost:3000", "file://", "null"];
+  if (origin && (allowedOrigins.includes(origin) || origin.startsWith("file://") || origin === "null")) {
     res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (!origin) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
   } else {
     res.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:3001");
   }
@@ -494,12 +506,27 @@ const server = http.createServer((req, res) => {
   // QR Code endpoint (PROTECTED)
   if (req.url === "/qr" && req.method === "GET") {
     if (!checkAuth(req, res)) return;
-    res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({
-      qr: currentQR,
-      status: connectionStatus,
-      user: connectedUser ? { name: connectedUser.name, phone: connectedUser.id?.split(":")[0] } : null,
-    }));
+
+    const sendResponse = (qrData) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        qr: qrData,
+        status: connectionStatus,
+        user: connectedUser ? { name: connectedUser.name, phone: connectedUser.id?.split(":")[0] } : null,
+      }));
+    };
+
+    if (currentQR) {
+      QRCode.toDataURL(currentQR, { width: 256, margin: 1 })
+        .then(qrData => sendResponse(qrData))
+        .catch(e => {
+          console.error("QR generation error:", e.message);
+          sendResponse(null);
+        });
+    } else {
+      sendResponse(null);
+    }
+    return;
   }
 
   // Status endpoint (PROTECTED)

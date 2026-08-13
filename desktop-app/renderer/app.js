@@ -40,6 +40,10 @@ function bindEvents() {
   document.getElementById("ai-input").onkeydown = (e) => {
     if (e.key === "Enter") sendAiMessage();
   };
+  // Bot logs toggle
+  if (document.getElementById("btn-show-logs")) {
+    document.getElementById("btn-show-logs").onclick = showBotLogs;
+  }
 }
 
 /* ─── VIEWS ───────────────────────────────────────── */
@@ -132,23 +136,43 @@ function saveSetupAndShowQR() {
 
 async function renderQr() {
   const box = document.getElementById("qr-box");
-  try {
-    const res = await fetch(`${BOT}/qr`);
-    const data = await res.json();
-    if (data.status === "connected" || data.connected) {
-      // Already connected — no QR needed
-      box.innerHTML = '<p style="color:var(--accent);font-weight:700">WhatsApp Already Connected! ✅</p>';
-      document.getElementById("bot-status").className = "status-badge online";
-      document.getElementById("bot-status").innerHTML = '<span class="dot green"></span> WhatsApp Connected!';
-      document.getElementById("btn-setup-done").classList.remove("hidden");
-    } else if (data.qr) {
-      box.innerHTML = '<img src="' + data.qr + '" width="220" height="220" />';
-    } else {
-      box.innerHTML = '<p class="muted">QR code load ho raha hai... thoda wait karo.</p>';
+  let retries = 0;
+  const maxRetries = 5;
+
+  async function tryFetchQR() {
+    try {
+      const res = await fetch(`${BOT}/qr`);
+      const data = await res.json();
+      if (data.status === "connected" || data.connected) {
+        box.innerHTML = '<p style="color:var(--accent);font-weight:700">WhatsApp Already Connected! ✅</p>';
+        document.getElementById("bot-status").className = "status-badge online";
+        document.getElementById("bot-status").innerHTML = '<span class="dot green"></span> WhatsApp Connected!';
+        document.getElementById("btn-setup-done").classList.remove("hidden");
+      } else if (data.qr) {
+        box.innerHTML = '<img src="' + data.qr + '" width="220" height="220" />';
+      } else {
+        // QR not ready yet — retry
+        retries++;
+        if (retries < maxRetries) {
+          box.innerHTML = `<p class="muted">QR load ho raha hai... (${retries}/${maxRetries})</p>`;
+          setTimeout(tryFetchQR, 3000);
+        } else {
+          box.innerHTML = '<p class="muted">QR generate nahi ho paya. Bot restart karo ya check karo port 8001.</p>';
+        }
+      }
+    } catch (e) {
+      retries++;
+      console.log(`[AuraBiz] Bot fetch failed (${retries}/${maxRetries}):`, e.message);
+      if (retries < maxRetries) {
+        box.innerHTML = `<p class="muted">Bot start ho raha hai... (${retries}/${maxRetries})</p>`;
+        setTimeout(tryFetchQR, 3000);
+      } else {
+        box.innerHTML = '<p class="muted">Bot server se connect nahi ho paaya (port 8001).<br/>Debug log check karo Desktop pe: <b>aurabiz_debug.log</b></p>';
+      }
     }
-  } catch {
-    box.innerHTML = '<p class="muted">Bot server se connect nahi ho paaya (port 8001).</p>';
   }
+
+  tryFetchQR();
 }
 
 function startBotStatusPoll() {
@@ -359,43 +383,22 @@ function startBotStatusCheck() {
 }
 
 /* ─── WEB DASHBOARD LAUNCH ──────────────────────────── */
-async function launchWebDashboard() {
+function launchWebDashboard() {
   const btn = document.getElementById("btn-setup-done");
-  btn.textContent = "Logging in...";
+  btn.textContent = "Dashboard khol rahe hain...";
   btn.disabled = true;
 
+  // Local renderer mein hi dashboard hai (backend/frontend servers ki zaroorat nahi)
+  // Web dashboard try karo, fail ho toh local app view dikhao
   try {
-    // Step 1: License-login se JWT token lo
-    const res = await fetch(`${BACKEND}/api/v1/auth/license-login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ license_key: licenseKey }),
-    });
-    const data = await res.json().catch(() => ({}));
-
-    if (res.ok && (data.access_token || data.accessToken)) {
-      // Step 2: Token store karo (frontend ke localStorage me)
-      const token = data.access_token || data.accessToken;
-      localStorage.setItem("aurabiz_token", token);
-      localStorage.setItem("aurabiz_user", JSON.stringify(data.user));
-
-      // Step 3: Web frontend load karo with token injection
-      // Electron ko signal bhejte hain ki web frontend load kare
-      if (window.desktopAPI && window.desktopAPI.loadDashboard) {
-        window.desktopAPI.loadDashboard(token);
-      } else {
-        // Fallback: navigate to web frontend URL
-        window.location.href = `http://localhost:3003/dashboard?token=${token}`;
-      }
-    } else {
-      btn.textContent = "Done - Dashboard Kholo";
-      btn.disabled = false;
-      alert("Login failed: " + (data.detail || "Unknown error"));
-    }
+    // Local app view show karo (Products, AI, WhatsApp sab yahan hai)
+    showView("app");
+    btn.textContent = "Done - Dashboard Kholo";
+    btn.disabled = false;
   } catch (e) {
     btn.textContent = "Done - Dashboard Kholo";
     btn.disabled = false;
-    alert("Backend se connect nahi ho paaya (port 8000).");
+    console.error("Dashboard launch error:", e);
   }
 }
 function switchPage(page) {
@@ -413,7 +416,40 @@ function switchPage(page) {
 }
 
 function toggleSidebar() {
-  document.getElementById("app-sidebar").classList.toggle("open");
+   document.getElementById("app-sidebar").classList.toggle("open");
+}
+
+/* ─── BOT LOGS (Debug) ──────────────────────────────── */
+async function showBotLogs() {
+  const logsEl = document.getElementById("bot-logs");
+  const btn = document.getElementById("btn-show-logs");
+  if (logsEl.classList.contains("hidden")) {
+    logsEl.classList.remove("hidden");
+    btn.textContent = "Hide Bot Logs";
+    try {
+      if (window.desktopAPI && window.desktopAPI.getBotDiagnostics) {
+        const diag = await window.desktopAPI.getBotDiagnostics();
+        let html = "=== Bot Diagnostics ===\n";
+        html += `Process running: ${diag.processRunning}\n`;
+        html += `Bot started: ${diag.started}\n`;
+        html += `Port: ${diag.port}\n`;
+        html += `\n--- Resource Paths ---\n`;
+        html += `Bot dir: ${diag.resourcePath?.bot || 'N/A'}\n`;
+        html += `Node exists: ${diag.resourcePath?.nodeExists}\n`;
+        html += `Bot.js exists: ${diag.resourcePath?.botJsExists}\n`;
+        html += `\n--- Bot Logs ---\n`;
+        diag.logs.forEach(l => html += l + "\n");
+        logsEl.textContent = html;
+      } else {
+        logsEl.textContent = "desktopAPI not available - check aurabiz_debug.log on Desktop";
+      }
+    } catch (e) {
+      logsEl.textContent = "Error fetching diagnostics: " + e.message;
+    }
+  } else {
+    logsEl.classList.add("hidden");
+    btn.textContent = "Show Bot Logs";
+  }
 }
 
 /* ─── AI TIER TOGGLE ──────────────────────────────── */

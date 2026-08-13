@@ -4,9 +4,9 @@
  * Features:
  *  - License activation/validation against master backend (:8010)
  *  - Local-first SQLite storage (better-sqlite3) for products
- *  - Free AI (built-in Falcon-style rules) vs Paid AI (platform AI keys)
- */
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+   *  - Free AI (built-in Falcon-style rules) vs Paid AI (platform AI keys)
+   */
+const { app, BrowserWindow, ipcMain, shell, ipcMain: _ipc } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -18,6 +18,15 @@ let masterProcess = null;
 let backendProcess = null;
 let botProcess = null;
 let frontendProcess = null;
+
+// ─── Bot startup logs (for renderer debugging) ───
+let botLogs = [];
+let botStarted = false;
+function logBot(msg) {
+  botLogs.push(msg);
+  if (botLogs.length > 100) botLogs.shift(); // keep last 100
+  log(msg);
+}
 
 // ─── Resource paths (bundled in EXE via extraResources) ───
 function getResourcePath(name) {
@@ -39,22 +48,40 @@ function startMasterBackend() {
     return;
   }
 
+  // Writable AppData dir for database, logs, etc.
+  const appDataDir = path.join(os.homedir(), "AppData", "Roaming", "AuraBiz");
+  if (!fs.existsSync(appDataDir)) fs.mkdirSync(appDataDir, { recursive: true });
+  const masterDbDir = path.join(appDataDir, "master");
+  if (!fs.existsSync(masterDbDir)) fs.mkdirSync(masterDbDir, { recursive: true });
+
+  const env = {
+    ...process.env,
+    PYTHONPATH: masterDir,
+    DATABASE_URL: "sqlite+aiosqlite:///" + path.join(masterDbDir, "master.db"),
+    MASTER_DB_URL: "sqlite+aiosqlite:///" + path.join(masterDbDir, "master.db"),
+    BACKEND_URL: "http://127.0.0.1:8000",
+  };
+
   if (!fs.existsSync(pythonExe)) {
-    log("[MASTER] Python not found — using system python");
-    masterProcess = spawn("python", ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8010"], {
-      cwd: masterDir,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } else {
-    log("[MASTER] Starting with bundled Python: " + pythonExe);
-    masterProcess = spawn(pythonExe, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8010"], {
-      cwd: masterDir,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    // Fail fast — system python version mismatch se random bugs aate hain
+    log("[MASTER] CRITICAL: Bundled Python not found at: " + pythonExe);
+    log("[MASTER] Skipping master backend — bundled Python is required.");
+    return;
   }
+
+  log("[MASTER] Starting with bundled Python: " + pythonExe);
+  masterProcess = spawn(pythonExe, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8010"], {
+    cwd: appDataDir,
+    stdio: ["ignore", "pipe", "pipe"],
+    env,
+  });
 
   masterProcess.stdout?.on("data", (d) => log("[MASTER] " + d.toString().trim()));
   masterProcess.stderr?.on("data", (d) => log("[MASTER] " + d.toString().trim()));
+  masterProcess.on("error", (err) => {
+    log("[MASTER] Spawn ERROR: " + err.message + " (code: " + (err.code || "unknown") + ")");
+    masterProcess = null;
+  });
   masterProcess.on("exit", (code) => {
     log("[MASTER] Process exited with code " + code);
     masterProcess = null;
@@ -70,25 +97,41 @@ function startBackend() {
     ? path.join(pythonPath, "python.exe")
     : path.join(pythonPath, "bin", "python3");
 
+  // Writable AppData dir for database, uploads, logs
+  const appDataDir = path.join(os.homedir(), "AppData", "Roaming", "AuraBiz");
+  if (!fs.existsSync(appDataDir)) fs.mkdirSync(appDataDir, { recursive: true });
+  const backendDataDir = path.join(appDataDir, "backend");
+  if (!fs.existsSync(backendDataDir)) fs.mkdirSync(backendDataDir, { recursive: true });
+  const uploadsDir = path.join(backendDataDir, "uploads");
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  const env = {
+    ...process.env,
+    PYTHONPATH: backendDir,
+    DATABASE_URL: "sqlite+aiosqlite:///" + path.join(backendDataDir, "ai_agent.db"),
+    BACKEND_URL: "http://127.0.0.1:8000",
+  };
+
   if (!fs.existsSync(pythonExe)) {
-    log("[BACKEND] Python not found at: " + pythonExe + " — using system python");
-    // Fallback: try system python
-    backendProcess = spawn("python", ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"], {
-      cwd: backendDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, PYTHONPATH: backendDir },
-    });
-  } else {
-    log("[BACKEND] Starting with bundled Python: " + pythonExe);
-    backendProcess = spawn(pythonExe, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"], {
-      cwd: backendDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, PYTHONPATH: backendDir },
-    });
+    // Fail fast — system python version mismatch se random bugs aate hain
+    log("[BACKEND] CRITICAL: Bundled Python not found at: " + pythonExe);
+    log("[BACKEND] Skipping backend — bundled Python is required.");
+    return;
   }
+
+  log("[BACKEND] Starting with bundled Python: " + pythonExe);
+  backendProcess = spawn(pythonExe, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"], {
+    cwd: backendDataDir,
+    stdio: ["ignore", "pipe", "pipe"],
+    env,
+  });
 
   backendProcess.stdout?.on("data", (d) => log("[BACKEND] " + d.toString().trim()));
   backendProcess.stderr?.on("data", (d) => log("[BACKEND] " + d.toString().trim()));
+  backendProcess.on("error", (err) => {
+    log("[BACKEND] Spawn ERROR: " + err.message + " (code: " + (err.code || "unknown") + ")");
+    backendProcess = null;
+  });
   backendProcess.on("exit", (code) => {
     log("[BACKEND] Process exited with code " + code);
     backendProcess = null;
@@ -97,6 +140,9 @@ function startBackend() {
 }
 
 // ─── Start WhatsApp Bot (port 8001) ───
+let botRetryCount = 0;
+const BOT_MAX_RETRIES = 3;
+
 function startBot() {
   const botDir = getResourcePath("whatsapp-bot");
   const nodePath = getResourcePath("node");
@@ -107,31 +153,86 @@ function startBot() {
   const botScript = path.join(botDir, "bot.js");
 
   if (!fs.existsSync(botScript)) {
-    log("[BOT] bot.js not found at: " + botScript + " — skipping bot");
+    logBot("[BOT] bot.js not found at: " + botScript + " — skipping bot");
     return;
   }
 
-  if (!fs.existsSync(nodeExe)) {
-    log("[BOT] Node not found at: " + nodeExe + " — using system node");
-    botProcess = spawn("node", [botScript], {
-      cwd: botDir,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } else {
-    log("[BOT] Starting with bundled Node: " + nodeExe);
-    botProcess = spawn(nodeExe, [botScript], {
-      cwd: botDir,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+  // Log paths for debugging
+  logBot("[BOT] Bot dir: " + botDir);
+   logBot("[BOT] Node exe: " + nodeExe);
+     logBot("[BOT] Node exists: " + fs.existsSync(nodeExe));
+  logBot("[BOT] Bot script exists: " + fs.existsSync(botScript));
+
+  // Auth state is handled by bot.js which uses AppData (C:\Program Files is read-only)
+  // Don't create auth_state in the install dir — let bot.js handle it
+  logBot("[BOT] Auth state will be in AppData (handled by bot.js)");;
+
+   // Clean stale sessions.json from dev machine (if exists in install dir)
+  const sessionsFile = path.join(botDir, "sessions.json");
+  if (fs.existsSync(sessionsFile)) {
+    try {
+      const sessions = JSON.parse(fs.readFileSync(sessionsFile, "utf-8"));
+      if (sessions && Object.keys(sessions).length > 0) {
+        // Has stale session data — clear for fresh install
+        logBot("[BOT] Clearing stale sessions.json for fresh install...");
+        fs.writeFileSync(sessionsFile, "{}");
+      }
+    } catch (e) {
+      logBot("[BOT] Error clearing sessions: " + e.message);
+    }
   }
 
-  botProcess.stdout?.on("data", (d) => log("[BOT] " + d.toString().trim()));
-  botProcess.stderr?.on("data", (d) => log("[BOT] " + d.toString().trim()));
-  botProcess.on("exit", (code) => {
-    log("[BOT] Process exited with code " + code);
-    botProcess = null;
-  });
-  log("[BOT] Starting on port 8001...");
+  if (!fs.existsSync(nodeExe)) {
+    // Fail fast — system node version mismatch se random bugs aate hain
+    logBot("[BOT] CRITICAL: Bundled Node NOT found at: " + nodeExe);
+    logBot("[BOT] Skipping bot — bundled Node is required.");
+    return;
+  }
+  logBot("[BOT] Starting with bundled Node: " + nodeExe);
+  const useExe = nodeExe;
+  const args = [botScript];
+
+  try {
+    botProcess = spawn(useExe, args, {
+      cwd: botDir,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, PORT: "8001" },
+    });
+
+    botProcess.stdout?.on("data", (d) => logBot("[BOT] " + d.toString().trim()));
+    botProcess.stderr?.on("data", (d) => logBot("[BOT STDERR] " + d.toString().trim()));
+
+    botProcess.on("error", (err) => {
+      logBot("[BOT] Spawn ERROR: " + err.message);
+      logBot("[BOT] Spawn error code: " + (err.code || "unknown"));
+      botProcess = null;
+      // Retry if bot fails to start
+      if (botRetryCount < BOT_MAX_RETRIES) {
+        botRetryCount++;
+        logBot("[BOT] Retrying in 5s... (attempt " + botRetryCount + "/" + BOT_MAX_RETRIES + ")");
+        setTimeout(() => startBot(), 5000);
+      } else {
+        logBot("[BOT] Max retries reached. Bot not started.");
+      }
+    });
+
+    botProcess.on("exit", (code) => {
+      logBot("[BOT] Process exited with code " + code);
+      botProcess = null;
+      botStarted = false;
+      // If bot exits with error, retry
+      if (code !== 0 && botRetryCount < BOT_MAX_RETRIES) {
+        botRetryCount++;
+        logBot("[BOT] Retrying in 5s... (attempt " + botRetryCount + "/" + BOT_MAX_RETRIES + ")");
+        setTimeout(() => startBot(), 5000);
+      }
+    });
+
+    logBot("[BOT] Starting on port 8001...");
+    botStarted = true;
+  } catch (err) {
+    logBot("[BOT] CRITICAL: Failed to spawn bot process: " + err.message);
+  }
 }
 
 // ─── Start Frontend (port 3003) ───
@@ -157,20 +258,18 @@ function startFrontend() {
   }
 
   if (!fs.existsSync(nodeExe)) {
-    log("[FRONTEND] Node not found — using system node");
-    frontendProcess = spawn("node", [serverScript], {
-      cwd: frontendDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, PORT: "3003" },
-    });
-  } else {
-    log("[FRONTEND] Starting with bundled Node: " + nodeExe);
-    frontendProcess = spawn(nodeExe, [serverScript], {
-      cwd: frontendDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, PORT: "3003" },
-    });
+    // Fail fast — system node version mismatch se random bugs aate hain
+    log("[FRONTEND] CRITICAL: Bundled Node NOT found at: " + nodeExe);
+    log("[FRONTEND] Skipping frontend — bundled Node is required.");
+    return;
   }
+
+  log("[FRONTEND] Starting with bundled Node: " + nodeExe);
+  frontendProcess = spawn(nodeExe, [serverScript], {
+    cwd: frontendDir,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, PORT: "3003" },
+  });
 
   frontendProcess.stdout?.on("data", (d) => log("[FRONTEND] " + d.toString().trim()));
   frontendProcess.stderr?.on("data", (d) => log("[FRONTEND] " + d.toString().trim()));
@@ -197,7 +296,7 @@ async function createTestLicenseIfEmpty() {
       log("[STARTUP] Creating test license...");
       spawn(pythonExe, [createScript], { stdio: ["ignore", "pipe", "pipe"] });
     } else if (fs.existsSync(createScript)) {
-      spawn("python", [createScript], { stdio: ["ignore", "pipe", "pipe"] });
+      log("[STARTUP] Bundled Python not found — skipping test license creation.");
     }
   } catch (e) {
     log("[STARTUP] Could not create test license: " + e.message);
@@ -208,13 +307,13 @@ async function createTestLicenseIfEmpty() {
 function startAllServices() {
   log("=== Starting all services ===");
   startMasterBackend();  // Pehle master (license validation ke liye)
-  
+
   // Test license create karo jab master ready ho jaye
   setTimeout(() => createTestLicenseIfEmpty(), 8000);
-  
+
   setTimeout(() => startBackend(), 3000);   // Backend (business data ke liye)
-  setTimeout(() => startBot(), 5000);       // WhatsApp Bot
-  setTimeout(() => startFrontend(), 7000);  // Frontend Dashboard
+  setTimeout(() => startBot(), 6000);       // WhatsApp Bot — thoda delay taaki master+backend ready ho sake
+  setTimeout(() => startFrontend(), 8000);  // Frontend Dashboard
 }
 
 // ─── Stop all services ───
@@ -222,7 +321,14 @@ function stopAllServices() {
   log("=== Stopping all services ===");
   [masterProcess, backendProcess, botProcess, frontendProcess].forEach((proc) => {
     if (proc && !proc.killed) {
-      try { proc.kill("SIGTERM"); } catch (e) { /* ignore */ }
+      try {
+        if (process.platform === "win32") {
+          // Windows par SIGTERM support nahi — taskkill use karo (children saath mein)
+          spawn("taskkill", ["/pid", String(proc.pid), "/t", "/f"], { stdio: "ignore" });
+        } else {
+          proc.kill("SIGTERM");
+        }
+      } catch (e) { /* ignore */ }
     }
   });
 }
@@ -592,6 +698,26 @@ function createWindow() {
   // ─── IPC bridge logging ───
   ipcMain.on("ipc-log", (_e, msg) => {
     log("[IPC] " + msg);
+  });
+
+  // ─── IPC: Bot diagnostics (for renderer debugging) ───
+  ipcMain.handle("bot:diagnostics", () => {
+    return {
+      logs: botLogs.slice().reverse(),
+      started: botStarted,
+      processRunning: !!botProcess,
+      port: 8001,
+      resourcePath: {
+        bot: getResourcePath("whatsapp-bot"),
+        nodeExe: getResourcePath("node") + (os.platform() === "win32" ? "/node.exe" : "/bin/node"),
+        botJsExists: fs.existsSync(path.join(getResourcePath("whatsapp-bot"), "bot.js")),
+        nodeExists: fs.existsSync(
+          os.platform() === "win32"
+            ? path.join(getResourcePath("node"), "node.exe")
+            : path.join(getResourcePath("node"), "bin", "node")
+        ),
+      },
+    };
   });
 
   // ─── Window controls ───

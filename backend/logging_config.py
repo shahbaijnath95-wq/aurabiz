@@ -1,6 +1,8 @@
 """Structured logging configuration using loguru."""
 
 import sys
+import os
+from pathlib import Path
 from loguru import logger
 
 
@@ -29,9 +31,13 @@ def setup_logging():
         colorize=True,
     )
 
-    # File logging for production
+    # File logging for production — use AppData (C:\Program Files is read-only!)
+    appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+    log_dir = Path(appdata) / "AuraBiz" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
     logger.add(
-        "logs/app_{time:YYYY-MM-DD}.log",
+        str(log_dir / "app_{time:YYYY-MM-DD}.log"),
         format=log_format,
         level="DEBUG",
         rotation="10 MB",
